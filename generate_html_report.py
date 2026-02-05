@@ -328,6 +328,7 @@ def generate_html(jobs):
         .col-budget {{ width: 80px; }}
         .col-applicants {{ width: 80px; }}
         .col-client {{ width: 70px; }}
+        .col-reasoning {{ width: 200px; }}
         .col-actions {{ width: 80px; }}
     </style>
     <script>
@@ -355,11 +356,11 @@ def generate_html(jobs):
 
                 let techTags = '';
                 if (job.tech_stack && job.tech_stack.length > 0) {{
-                    techTags = job.tech_stack.slice(0, 3).map(tech => `<span class="tech-tag">${{tech}}</span>`).join('');
-                    if (job.tech_stack.length > 3) {{
-                        techTags += ` <span class="badge">+${{job.tech_stack.length - 3}}</span>`;
-                    }}
+                    techTags = job.tech_stack.map(tech => `<span class="tech-tag">${{tech}}</span>`).join('');
                 }}
+
+                let reasoningSummary = job.reasoning_summary || 'No reasoning available';
+                reasoningSummary = reasoningSummary.replace(/Budget:|Tech Fit:|Clarity:/g, '<strong>$&</strong>');
 
                 row.innerHTML = `
                     <td><span class="expand-toggle" onclick="toggleDetail('${{job.job_id}}')">[+]</span></td>
@@ -368,9 +369,10 @@ def generate_html(jobs):
                     <td class="job-age"><small style="color: #9ca3af">${{job.job_age_hours}}h</small><br>${{job.job_age_string}}</td>
                     <td class="priority ${{priorityClass}}">${{job.priority}}</td>
                     <td>${{formatBudget(job.budget)}}</td>
-                    <td class="competition-cell">${{job.applicant_count}} / ${{job.interviewing_count}}</td>
-                    <td>${{clientBadge}}</td>
+                    <td class="reasoning-cell"><small>${{reasoningSummary}}</small></td>
                     <td><small>${{techTags}}</small></td>
+                    <td class="competition-cell">${{job.applicant_count}}</td>
+                    <td>${{clientBadge}}</td>
                 `;
 
                 tbody.appendChild(row);
@@ -567,9 +569,10 @@ def generate_html(jobs):
                         <th class="col-age sorted asc" onclick="sortTable('job_age_hours')">Age</th>
                         <th class="col-priority" onclick="sortTable('priority')">Priority</th>
                         <th class="col-budget" onclick="sortTable('budget')">Budget</th>
-                        <th class="col-applicants" onclick="sortTable('applicant_count')">Applicants / Interviews</th>
-                        <th class="col-client">Verified</th>
+                        <th class="col-reasoning">AI Reasoning</th>
                         <th>Tech Stack</th>
+                        <th class="col-applicants" onclick="sortTable('applicant_count')">Applicants</th>
+                        <th class="col-client">Verified</th>
                     </tr>
                 </thead>
                 <tbody id="jobs-table-body">
