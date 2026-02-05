@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 from ..models.job import Job
+from ..utils.url_parser import extract_urls, calculate_job_age
 from .evaluator import JobEvaluator
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,6 +40,26 @@ class JobIngestionService:
 
                 existing = await db.get(Job, job.id)
                 if existing:
+                    # Update job metadata even if already ingested
+                    existing.job_age_hours = job.job_age_hours
+                    existing.job_age_string = job.job_age_string
+                    existing.applicant_count = job.applicant_count
+                    existing.interviewing_count = job.interviewing_count
+                    existing.invite_only = job.invite_only
+                    existing.client_payment_verified = job.client_payment_verified
+                    existing.client_rating = job.client_rating
+                    existing.client_jobs_posted = job.client_jobs_posted
+                    existing.client_hire_rate = job.client_hire_rate
+                    existing.client_total_paid = job.client_total_paid
+                    existing.client_hires = job.client_hires
+                    existing.client_reviews = job.client_reviews
+                    existing.experience_level = job.experience_level
+                    existing.project_length = job.project_length
+                    existing.proposal_required = job.proposal_required
+                    existing.client_response_time = job.client_response_time
+                    existing.description_urls = job.description_urls
+                    existing.updated_at = datetime.utcnow()
+                    await db.commit()
                     results["ingested"] += 1
                 else:
                     db.add(job)
@@ -106,15 +127,43 @@ class JobIngestionService:
         ts_publish = self._parse_timestamp(job_data.get("ts_publish"))
         scraped_at = self._parse_timestamp(job_data.get("scraped_at"))
 
+        # Calculate job age
+        description = job_data.get("description", "")
+        job_age_hours, job_age_str = calculate_job_age(ts_publish) if ts_publish else (0, "")
+
+        # Extract URLs from description
+        urls = extract_urls(description)
+
+        # Get client data (default to 0/None if not available)
+        client_data = job_data.get("client_info", {})
+        client_secondary = job_data.get("client_secondary_info", {})
+
         return Job(
             id=job_data["id"],
             title=job_data["title"],
             ts_publish=ts_publish,
-            description=job_data["description"],
+            description=description,
             type=job_data.get("type", "FIXED"),
             url=job_data["url"],
             fixed_budget_amount=budget_amount,
             fixed_duration_weeks=duration_weeks,
+            job_age_hours=job_age_hours,
+            job_age_string=job_age_str,
+            applicant_count=job_data.get("applicant_count", 0),
+            interviewing_count=job_data.get("interviewing_count", 0),
+            invite_only=job_data.get("invite_only", False),
+            client_payment_verified=job_data.get("payment_verified", False),
+            client_rating=job_data.get("client_rating"),
+            client_jobs_posted=job_data.get("client_jobs_posted", 0),
+            client_hire_rate=job_data.get("client_hire_rate"),
+            client_total_paid=job_data.get("client_total_paid"),
+            client_hires=job_data.get("client_hires", 0),
+            client_reviews=job_data.get("client_reviews", 0),
+            experience_level=job_data.get("experience_level"),
+            project_length=job_data.get("project_length"),
+            proposal_required=job_data.get("proposal_required", False),
+            client_response_time=job_data.get("client_response_time"),
+            description_urls=urls,
             source="apify",
             scraped_at=scraped_at,
         )

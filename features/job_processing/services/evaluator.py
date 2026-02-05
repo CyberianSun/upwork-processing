@@ -35,12 +35,25 @@ EXPERTISE AREAS:
 
 EVALUATION CRITERIA (score 0-10 for each):
 1. Budget Adequacy (25%): 10 if ≥$500 and matches scope, 0 if <$500 or mismatches wildly
-2. Client Reliability (15%): 10 if verified/hires>10%, 7 if some activity, 3 if new/unknown, 0 if suspicious
+2. Client Reliability (15%): Evaluate using:
+   - Payment verification (verified=bonus)
+   - Client rating (4.5+=bonus, 4.0-4.5=ok, <4.0=penalty)
+   - Hire rate (>20%=bonus, 10-20%=ok, <10%=penalty)
+   - Total paid amount (>1000=bonus, 0=penalty)
 3. Requirements Clarity (20%): 10 if specific/actionable, 7 if clear but vague, 3 if ambiguous, 0 if nonsensical
 4. AI Technical Fit (30%): 10 if matches 3+ expertise areas, 7 if matches 2, 3 if matches 1, 0 if no match
-5. Timeline Realism (10%): 10 if realistic, 7 if slightly tight, 3 if unrealistic, 0 if impossible
+5. Competition & Freshness (10%): Evaluate using:
+   - Applicant count (<5=bonus, 5-15=neutral, >20=penalty)
+   - Job age (<24h=bonus, <72h=neutral, >1w=penalty)
 
-TOTAL SCORE = weighted sum (budget*2.5 + client*1.5 + clarity*2.0 + tech_fit*3.0 + timeline*1.0)
+SCORE TO JSON FIELD MAPPING:
+- score_budget maps to "score_budget"
+- score_client maps to "score_client"
+- score_clarity maps to "score_clarity"
+- score_tech_fit maps to "score_tech_fit"
+- Competition score maps to "score_timeline" (JSON output field name)
+
+TOTAL SCORE = weighted sum (budget*2.5 + client*1.5 + clarity*2.0 + tech_fit*3.0 + competition*1.0)
 
 PRIORITY CLASSIFICATION:
 - High: score_total ≥ 80
@@ -87,6 +100,26 @@ OUTPUT RULES:
             else None,
             hourly_min=float(job.hourly_min) if job.hourly_min else None,
             hourly_max=float(job.hourly_max) if job.hourly_max else None,
+            # Competition metrics
+            applicant_count=job.applicant_count or 0,
+            interviewing_count=job.interviewing_count or 0,
+            invite_only=job.invite_only or False,
+            # Client quality
+            client_payment_verified=job.client_payment_verified or False,
+            client_rating=float(job.client_rating) if job.client_rating else None,
+            client_jobs_posted=job.client_jobs_posted or 0,
+            client_hire_rate=float(job.client_hire_rate) if job.client_hire_rate else None,
+            client_total_paid=float(job.client_total_paid) if job.client_total_paid else None,
+            client_hires=job.client_hires or 0,
+            client_reviews=job.client_reviews or 0,
+            # Job specifics
+            experience_level=job.experience_level,
+            project_length=job.project_length,
+            # Job age
+            job_age_hours=job.job_age_hours or 0,
+            job_age_string=job.job_age_string or "",
+            # URLs
+            description_urls=job.description_urls or [],
         )
 
         messages = [
@@ -176,14 +209,46 @@ OUTPUT RULES:
                 f"Hourly Rate: ${request.hourly_min} - ${request.hourly_max}/hr"
             )
 
+        client_info = []
+        if request.client_payment_verified:
+            client_info.append("Payment Verified: Yes")
+        if request.client_rating:
+            client_info.append(f"Client Rating: {request.client_rating}/5.0")
+        if request.client_hire_rate:
+            client_info.append(f"Hire Rate: {request.client_hire_rate}%")
+        if request.client_total_paid:
+            client_info.append(f"Total Paid: ${request.client_total_paid:,.0f}")
+        if request.client_jobs_posted:
+            client_info.append(f"Jobs Posted: {request.client_jobs_posted}")
+
+        competition_info = []
+        competition_info.append(f"Applicants: {request.applicant_count}")
+        competition_info.append(f"Interviewing: {request.interviewing_count}")
+        if request.invite_only:
+            competition_info.append("Invite Only: Yes")
+        competition_info.append(f"Posted: {request.job_age_string}")
+
+        urls_section = ""
+        if request.description_urls:
+            urls_section = f"\nURLs in Description ({len(request.description_urls)}):\n" + \
+                           "\n".join(f"  - {url}" for url in request.description_urls[:5])
+            if len(request.description_urls) > 5:
+                urls_section += f"\n  ... and {len(request.description_urls) - 5} more"
+
         return f"""Evaluate this Upwork job:
 
 Title: {request.title}
 Type: {request.type}
 {budget_info}
 
+{', '.join(client_info) if client_info else 'Client Info: Not available'}
+
+Competition:
+{', '.join(competition_info)}
+
 Description:
 {request.description}
+{urls_section}
 
 URL: {request.url}
 

@@ -1,10 +1,6 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
-from typing import List, Optional
-
-
 from pydantic import BaseModel, Field, computed_field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 
 class ExpertiseMatch(BaseModel):
@@ -22,6 +18,31 @@ class JobEvaluationRequest(BaseModel):
     fixed_duration_weeks: Optional[float] = None
     hourly_min: Optional[float] = None
     hourly_max: Optional[float] = None
+
+    # Competition metrics
+    applicant_count: int = 0
+    interviewing_count: int = 0
+    invite_only: bool = False
+
+    # Client quality signals
+    client_payment_verified: bool = False
+    client_rating: Optional[float] = None
+    client_jobs_posted: int = 0
+    client_hire_rate: Optional[float] = None
+    client_total_paid: Optional[float] = None
+    client_hires: int = 0
+    client_reviews: int = 0
+
+    # Job specifics
+    experience_level: Optional[str] = None
+    project_length: Optional[str] = None
+
+    # Job age
+    job_age_hours: int = 0
+    job_age_string: str = ""
+
+    # URLs in description
+    description_urls: List[str] = Field(default_factory=list)
 
 
 class JobEvaluationResponse(BaseModel):
@@ -74,3 +95,29 @@ class JobEvaluationListResponse(BaseModel):
     tech_stack: List[str]
     matched_expertise_ids: List[int]
     reasoning_summary: str
+
+    # Competition metrics
+    applicant_count: int = 0
+    interviewing_count: int = 0
+    invite_only: bool = False
+
+    # Client quality signals
+    client_payment_verified: bool = False
+    client_rating: Optional[float] = None
+    client_jobs_posted: int = 0
+    client_hire_rate: Optional[float] = None
+    client_total_paid: Optional[float] = None
+    client_hires: int = 0
+    client_reviews: int = 0
+
+    # Job specifics
+    experience_level: Optional[str] = None
+    project_length: Optional[str] = None
+    client_response_time: Optional[str] = None
+
+    # Job age
+    job_age_hours: int = 0
+    job_age_string: str = ""
+
+    # URLs in description
+    description_urls: List[str] = Field(default_factory=list)

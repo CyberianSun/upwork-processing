@@ -47,6 +47,22 @@ async def get_ranked_jobs(
             tech_stack=evaluation.tech_stack,
             matched_expertise_ids=evaluation.matched_expertise_ids,
             reasoning_summary=_summarize_reasoning(evaluation),
+            applicant_count=job.applicant_count,
+            interviewing_count=job.interviewing_count,
+            invite_only=job.invite_only,
+            client_payment_verified=job.client_payment_verified,
+            client_rating=job.client_rating,
+            client_jobs_posted=job.client_jobs_posted,
+            client_hire_rate=job.client_hire_rate,
+            client_total_paid=job.client_total_paid,
+            client_hires=job.client_hires,
+            client_reviews=job.client_reviews,
+            experience_level=job.experience_level,
+            project_length=job.project_length,
+            client_response_time=job.client_response_time,
+            job_age_hours=job.job_age_hours,
+            job_age_string=job.job_age_string,
+            description_urls=job.description_urls or [],
         )
         for job, evaluation in jobs
     ]
@@ -65,12 +81,16 @@ async def get_evaluation_stats(db: AsyncSession = Depends(get_db)) -> dict:
             JobEvaluation.is_ai_related == 1
         ).where(JobEvaluation.priority == "High")
     )
+    jobs_with_urls = await db.scalar(
+        select(func.count(Job.id)).where(func.jsonb_array_length(Job.description_urls) > 0)
+    )
 
     return {
         "total_jobs": total_jobs or 0,
         "ai_related_jobs": ai_related or 0,
         "high_priority_jobs": high_priority or 0,
         "ai_related_percentage": (ai_related / total_jobs * 100) if total_jobs else 0,
+        "jobs_with_urls": jobs_with_urls or 0,
     }
 
 
