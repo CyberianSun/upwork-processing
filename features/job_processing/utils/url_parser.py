@@ -57,20 +57,36 @@ def calculate_job_age(ts_publish: datetime) -> tuple[int, str]:
     delta = now - ts_publish
     hours = int(delta.total_seconds() / 3600)
 
-    # Human-readable string - most granular appropriate unit
-    minutes = int(delta.total_seconds() / 60)
+    # Human-readable string - cumulative display of time units
+    total_minutes = int(delta.total_seconds() / 60)
+    display_minutes = total_minutes % 60
+    display_hours = hours % 24
+    display_days = (hours // 24) % 7
+    display_weeks = hours // 168
 
-    if minutes < 5:
+    if total_minutes < 5:
         age_str = "just now"
-    elif minutes < 60:
-        age_str = f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+    elif total_minutes < 60:
+        age_str = f"{total_minutes} minute{'s' if total_minutes != 1 else ''} ago"
     elif hours < 24:
-        age_str = f"{hours} hour{'s' if hours != 1 else ''} ago"
+        age_str = f"{hours} hour{'s' if hours != 1 else ''}"
+        if display_minutes > 0:
+            age_str += f", {display_minutes} minute{'s' if display_minutes != 1 else ''}"
+        age_str += " ago"
     elif hours < 168:  # 1 week
         days = hours // 24
-        age_str = f"{days} day{'s' if days != 1 else ''} ago"
+        age_str = f"{days} day{'s' if days != 1 else ''}"
+        if display_hours > 0:
+            age_str += f", {display_hours} hour{'s' if display_hours != 1 else ''}"
+        if display_minutes > 0 and hours < 48:
+            age_str += f", {display_minutes} minute{'s' if display_minutes != 1 else ''}"
+        age_str += " ago"
     else:
-        weeks = hours // 168
-        age_str = f"{weeks} week{'s' if weeks != 1 else ''} ago"
+        age_str = f"{display_weeks} week{'s' if display_weeks != 1 else ''}"
+        if display_days > 0:
+            age_str += f", {display_days} day{'s' if display_days != 1 else ''}"
+        if display_hours > 0 and display_weeks < 2:
+            age_str += f", {display_hours} hour{'s' if display_hours != 1 else ''}"
+        age_str += " ago"
 
     return hours, age_str
