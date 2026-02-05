@@ -291,6 +291,27 @@ def generate_html(jobs):
             max-height: 300px;
             overflow-y: auto;
         }}
+        .reasoning-section {{
+            margin-top: 15px;
+            padding: 12px;
+            background: #f0f9ff;
+            border-radius: 6px;
+            border-left: 3px solid #0ea5e9;
+        }}
+        .reasoning-section h5 {{
+            color: #0369a1;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }}
+        .reasoning-item {{
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }}
+        .reasoning-item:last-child {{
+            margin-bottom: 0;
+        }}
         .competition-cell {{
             text-align: center;
             font-size: 0.8rem;
@@ -357,11 +378,34 @@ def generate_html(jobs):
                 const detailRow = document.createElement('tr');
                 detailRow.id = 'detail-' + job.job_id;
                 detailRow.className = 'detail-row';
+
+                let reasoningHtml = '<div class="reasoning-section">';
+                reasoningHtml += '<h5>AI Evaluation Reasoning</h5>';
+
+                if (job.reason_budget) {{
+                    reasoningHtml += `<div class="reasoning-item"><strong>Budget Assessment:</strong> ${{job.reason_budget}}</div>`;
+                }}
+                if (job.reason_tech_fit) {{
+                    reasoningHtml += `<div class="reasoning-item"><strong>Tech Stack Fit:</strong> ${{job.reason_tech_fit}}</div>`;
+                }}
+                if (job.reason_clarity) {{
+                    reasoningHtml += `<div class="reasoning-item"><strong>Requirements Clarity:</strong> ${{job.reason_clarity}}</div>`;
+                }}
+                if (job.reason_client) {{
+                    reasoningHtml += `<div class="reasoning-item"><strong>Client Reliability:</strong> ${{job.reason_client}}</div>`;
+                }}
+                if (job.reason_timeline) {{
+                    reasoningHtml += `<div class="reasoning-item"><strong>Timeline Assessment:</strong> ${{job.reason_timeline}}</div>`;
+                }}
+
+                reasoningHtml += '</div>';
+
                 detailRow.innerHTML = `
                     <td colspan="9">
                         <div class="detail-content">
                             <h4>Job Description</h4>
                             <p>${{(job.description || 'No description available').replace(/</g, '&lt;').replace(/>/g, '&gt;')}}</p>
+                            ${{reasoningHtml}}
                         </div>
                     </td>
                 `;
@@ -519,8 +563,8 @@ def generate_html(jobs):
                     <tr>
                         <th class="col-actions"></th>
                         <th onclick="sortTable('title')">Job Title</th>
-                        <th class="col-score sorted asc" onclick="sortTable('score_total')">Score</th>
-                        <th class="col-age" onclick="sortTable('job_age_hours')">Age</th>
+                        <th class="col-score" onclick="sortTable('score_total')">Score</th>
+                        <th class="col-age sorted asc" onclick="sortTable('job_age_hours')">Age</th>
                         <th class="col-priority" onclick="sortTable('priority')">Priority</th>
                         <th class="col-budget" onclick="sortTable('budget')">Budget</th>
                         <th class="col-applicants" onclick="sortTable('applicant_count')">Applicants / Interviews</th>

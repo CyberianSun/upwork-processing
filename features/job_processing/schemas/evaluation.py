@@ -97,6 +97,13 @@ class JobEvaluationListResponse(BaseModel):
     matched_expertise_ids: List[int]
     reasoning_summary: str
 
+    # Detailed AI reasoning
+    reason_budget: Optional[str] = None
+    reason_tech_fit: Optional[str] = None
+    reason_clarity: Optional[str] = None
+    reason_client: Optional[str] = None
+    reason_timeline: Optional[str] = None
+
     # Competition metrics
     applicant_count: int = 0
     interviewing_count: int = 0

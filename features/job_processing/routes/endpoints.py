@@ -77,6 +77,11 @@ async def get_ranked_jobs(
             job_age_hours=item["age_hours"],
             job_age_string=item["age_string"],
             description_urls=item["job"].description_urls or [],
+            reason_budget=item["evaluation"].reason_budget,
+            reason_tech_fit=item["evaluation"].reason_tech_fit,
+            reason_clarity=item["evaluation"].reason_clarity,
+            reason_client=item["evaluation"].reason_client,
+            reason_timeline=item["evaluation"].reason_timeline,
         )
         for item in job_list
     ]
