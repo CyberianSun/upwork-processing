@@ -11,6 +11,7 @@ app.include_router(job_router)
 
 
 async def check_db_connection(max_retries: int = 30, retry_interval: float = 2.0):
+    """Wait for database connection with retries."""
     for attempt in range(max_retries):
         try:
             async with AsyncSessionLocal() as session:

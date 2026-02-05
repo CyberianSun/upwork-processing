@@ -15,3 +15,5 @@ venv/
 .*/migrations/versions/*.pyc
 .env
 *.log
+evaluation_results.json
+results/

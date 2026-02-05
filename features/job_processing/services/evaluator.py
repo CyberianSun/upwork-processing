@@ -12,7 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class JobEvaluator:
+    """Evaluates Upwork jobs against AI Systems Engineer criteria using Cerebras GLM 4.7."""
+
     def __init__(self, cerebras_client: CerebrasClient):
+        """Initialize evaluator with Cerebras client."""
         self.client = cerebras_client
         self.system_prompt = self._build_system_prompt()
 
@@ -61,6 +64,15 @@ OUTPUT RULES:
         job: Job,
         db: AsyncSession,
     ) -> Optional[JobEvaluation]:
+        """Evaluate a job using AI and store results in database.
+
+        Args:
+            job: Job to evaluate
+            db: Database session
+
+        Returns:
+            JobEvaluation if stored, None if job already evaluated
+        """
         request = JobEvaluationRequest(
             job_id=job.id,
             title=job.title,

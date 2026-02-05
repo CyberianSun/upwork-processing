@@ -9,7 +9,13 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class CerebrasClient:
+    """Cerebras GLM 4.7 API client with rate limiting.
+
+    Handles chat completions with automatic retry logic and respect for API limits.
+    """
+
     def __init__(self):
+        """Initialize client with rate limiting settings from config."""
         self.api_key = settings.cerebras_api_key
         self.model = settings.cerebras_model
         self.base_url = "https://api.cerebras.ai/v1"
@@ -22,6 +28,7 @@ class CerebrasClient:
         self._loop = asyncio.get_event_loop()
 
     async def _get_client(self) -> httpx.AsyncClient:
+        """Get or create HTTP client with authorization header."""
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(
                 base_url=self.base_url,
@@ -31,6 +38,7 @@ class CerebrasClient:
         return self._http_client
 
     async def _rate_limit(self):
+        """Enforce rate limiting between API requests."""
         async with self._request_lock:
             elapsed = self._loop.time() - self._last_request_time
             if elapsed < self._min_request_interval:
@@ -42,6 +50,18 @@ class CerebrasClient:
         messages: list[dict[str, Any]],
         response_model: type[T],
     ) -> T:
+        """Send chat completion request with retry logic.
+
+        Args:
+            messages: Chat messages for the model
+            response_model: Pydantic type to validate response
+
+        Returns:
+            Validated response matching response_model
+
+        Raises:
+            Exception: After 3 retry attempts
+        """
         import json
 
         async with self._semaphore:
@@ -75,5 +95,6 @@ class CerebrasClient:
                     await asyncio.sleep(2 ** attempt)
 
     async def close(self):
+        """Close HTTP client connection."""
         if self._http_client:
             await self._http_client.aclose()
