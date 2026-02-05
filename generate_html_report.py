@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate HTML report from ranked jobs API data."""
+"""Generate HTML table report from ranked jobs API data with filters."""
 
 import json
 import urllib.request
@@ -21,13 +21,13 @@ def fetch_jobs_data(limit=60):
 def expertise_map():
     """Map expertise IDs to names."""
     return {
-        1: "AI Agent Architecture",
-        2: "LLM/Prompt Engineering",
+        1: "AI Agent",
+        2: "LLM/Prompt",
         3: "Data Processing",
-        4: "Backend Systems",
-        5: "Frontend/Web",
-        6: "DevOps/Infrastructure",
-        7: "Voice & Real-Time AI",
+        4: "Backend",
+        5: "Frontend",
+        6: "DevOps",
+        7: "Voice AI",
         8: "Testing",
     }
 
@@ -39,87 +39,8 @@ def format_budget(budget):
     return f"${budget:,.0f}"
 
 
-def format_duration(weeks):
-    """Format duration for display."""
-    if weeks is None:
-        return "N/A"
-    if weeks == 1:
-        return "1 week"
-    return f"{weeks} weeks"
-
-
-def generate_expertise_badges(ids):
-    """Generate HTML badges for expertise areas."""
-    mapping = expertise_map()
-    badges = []
-    for eid in sorted(ids):
-        name = mapping.get(eid, f"ID {eid}")
-        badges.append(f'<span class="badge badge-expertise" style="background-color: {get_expertise_color(eid)};">{name}</span>')
-    return " ".join(badges)
-
-
-def get_expertise_color(eid):
-    """Get color code for expertise ID."""
-    colors = {
-        1: "#4f46e5",  # AI Agent - indigo
-        2: "#7c3aed",  # LLM - violet
-        3: "#059669",  # Data Processing - emerald
-        4: "#0891b2",  # Backend - cyan
-        5: "#db2777",  # Frontend - pink
-        6: "#ea580c",  # DevOps - orange
-        7: "#16a34a",  # Voice - green
-        8: "#6366f1",  # Testing - indigo-light
-    }
-    return colors.get(eid, "#6b7280")
-
-
-def get_priority_color(priority):
-    """Get color for priority badge."""
-    colors = {
-        "High": "#dc2626",      # red
-        "Medium": "#f59e0b",    # amber
-        "Low": "#16a34a",       # green
-    }
-    return colors.get(priority, "#6b7280")
-
-
-def format_client_info(job):
-    """Get HTML for client info section."""
-    parts = []
-
-    if job.get("client_payment_verified"):
-        parts.append('<span class="badge badge-verified">✓ Payment Verified</span>')
-
-    if job.get("client_rating"):
-        rating = job["client_rating"]
-        stars = "★" * min(5, int(rating))
-        parts.append(f'<span class="badge badge-rating">{stars} {rating}</span>')
-
-    if job.get("client_hire_rate"):
-        parts.append(f'<span class="badge badge-rate">Hire Rate: {job["client_hire_rate"]}%</span>')
-
-    if job.get("client_total_paid"):
-        parts.append(f'<span class="badge badge-paid">Spent: ${job["client_total_paid"]:,.0f}</span>')
-
-    return " ".join(parts) if parts else '<span class="text-muted">No client info available</span>'
-
-
-def format_urls(urls):
-    """Get HTML for URLs with security warning."""
-    if not urls:
-        return ""
-
-    html = '<div class="urls-section">'
-    html += '<div class="urls-warning">⚠️ External links - verify before visiting</div>'
-    html += '<ul class="urls-list">'
-    for url in urls:
-        html += f'<li><code>{url}</code></li>'
-    html += '</ul></div>'
-    return html
-
-
 def generate_html(jobs):
-    """Generate HTML report."""
+    """Generate HTML table report with filters."""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
 
     html = f"""<!DOCTYPE html>
@@ -135,14 +56,14 @@ def generate_html(jobs):
             box-sizing: border-box;
         }}
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             line-height: 1.5;
             color: #1f2937;
             background: #f9fafb;
             padding: 20px;
         }}
         .container {{
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }}
         .header {{
@@ -163,305 +84,383 @@ def generate_html(jobs):
             opacity: 0.9;
             font-size: 0.9rem;
         }}
-        .stats-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }}
-        .stat-card {{
+        .filters {{
             background: white;
             padding: 20px;
             border-radius: 10px;
+            margin-bottom: 20px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            text-align: center;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
         }}
-        .stat-value {{
-            font-size: 2rem;
-            font-weight: 700;
-            color: #4f46e5;
-            margin-bottom: 5px;
+        .filter-group {{
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
         }}
-        .stat-label {{
+        .filter-group label {{
+            font-size: 0.8rem;
+            font-weight: 600;
             color: #6b7280;
+        }}
+        .filter-group select,
+        .filter-group input {{
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
             font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            min-width: 150px;
         }}
-        .jobs-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
-            gap: 25px;
+        .filter-group input[type="number"] {{
+            min-width: 100px;
         }}
-        @media (max-width: 768px) {{
-            .jobs-grid {{
-                grid-template-columns: 1fr;
-            }}
+        .filter-group input[type="checkbox"] {{
+            width: auto;
+            min-width: auto;
         }}
-        .job-card {{
+        .btn {{
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }}
+        .btn-reset {{
+            background: #6b7280;
+            color: white;
+            margin-top: 20px;
+        }}
+        .btn-reset:hover {{
+            background: #4b5563;
+        }}
+        .data-warning {{
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #92400e;
+        }}
+        .table-container {{
             background: white;
             border-radius: 12px;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
+            overflow-x: auto;
         }}
-        .job-card:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
         }}
-        .job-card.expanded {{
-            cursor: default;
-            transform: none;
-        }}
-        .job-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            padding: 20px;
+        thead {{
             background: #f8fafc;
-            border-bottom: 1px solid #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }}
+        th {{
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+            color: #475569;
+            border-bottom: 2px solid #e2e8f0;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }}
+        th:hover {{
+            background: #f1f5f9;
+        }}
+        th.sorted::after {{
+            content: " ↕";
+            opacity: 0.5;
+        }}
+        th.sorted.asc::after {{
+            content: " ↑";
+            opacity: 1;
+        }}
+        th.sorted.desc::after {{
+            content: " ↓";
+            opacity: 1;
+        }}
+        td {{
+            padding: 12px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }}
+        tr:hover {{
+            background: #f8fafc;
+        }}
+        tr.expanded {{
+            background: #f0f9ff;
         }}
         .job-title {{
-            flex: 1;
-            padding-right: 15px;
+            max-width: 250px;
+            font-weight: 600;
         }}
         .job-title a {{
             color: #1f2937;
             text-decoration: none;
-            font-size: 1.1rem;
-            font-weight: 600;
-            line-height: 1.3;
         }}
         .job-title a:hover {{
             color: #4f46e5;
-        }}
-        .job-meta {{
-            text-align: right;
-            min-width: 120px;
+            text-decoration: underline;
         }}
         .score {{
-            font-size: 2rem;
-            font-weight: 800;
-            color: #4f46e5;
-            line-height: 1;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.1rem;
         }}
+        .score-high {{ color: #dc2626; }}
+        .score-medium {{ color: #f59e0b; }}
+        .score-low {{ color: #16a34a; }}
         .priority {{
-            margin-top: 5px;
-            font-size: 0.85rem;
+            text-align: center;
+            padding: 4px 8px;
+            border-radius: 4px;
             font-weight: 600;
-            padding: 2px 10px;
-            border-radius: 12px;
-            display: inline-block;
+            font-size: 0.75rem;
             color: white;
         }}
-        .job-details {{
-            padding: 20px;
-        }}
-        .detail-row {{
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            font-size: 0.9rem;
-        }}
-        .detail-label {{
-            color: #6b7280;
-            font-weight: 500;
-        }}
-        .detail-value {{
-            color: #1f2937;
-            font-weight: 500;
-        }}
-        .tech-stack {{
-            margin: 15px 0;
-        }}
-        .tech-stack-label {{
-            font-size: 0.85rem;
-            color: #6b7280;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }}
-        .tech-tags {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-        }}
-        .tech-tag {{
-            background: #f3f4f6;
-            color: #374151;
-            padding: 4px 10px;
-            border-radius: 6px;
+        .priority-high {{ background: #dc2626; }}
+        .priority-medium {{ background: #f59e0b; }}
+        .priority-low {{ background: #16a34a; }}
+        .job-age {{
             font-size: 0.8rem;
-            font-weight: 500;
-        }}
-        .expertise-section {{
-            margin: 15px 0;
-            padding-top: 15px;
-            border-top: 1px solid #e5e7eb;
-        }}
-        .expertise-label {{
-            font-size: 0.85rem;
-            color: #6b7280;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }}
-        .badges {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
+            color: #4b5563;
         }}
         .badge {{
             display: inline-block;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.7rem;
             font-weight: 600;
-            color: white;
-        }}
-        .badge-expertise {{
-            font-weight: 500;
-        }}
-        .expand-toggle {{
-            display: inline-block;
-            margin-left: 10px;
-            font-size: 0.75rem;
-            color: #6b7280;
-            background: #f3f4f6;
-            padding: 2px 8px;
-            border-radius: 4px;
-        }}
-        .job-details {{
-            padding: 20px;
-            display: none;
-        }}
-        .job-details.full {{
-            display: block;
-        }}
-        .job-description {{
-            display: none;
-            margin: 15px 0;
-            padding: 15px;
-            background: #f9fafb;
-            border-radius: 8px;
-            border-left: 3px solid #4f46e5;
-            font-size: 0.9rem;
-            line-height: 1.6;
-            white-space: pre-wrap;
-        }}
-        .job-description.active {{
-            display: block;
+            background: #e5e7eb;
+            color: #374151;
+            margin: 1px;
         }}
         .badge-verified {{
-            background: #16a34a;
+            background: #dcfce7;
+            color: #166534;
         }}
-        .badge-rating {{
-            background: #f59e0b;
+        .tech-tag {{
+            display: inline-block;
+            background: #f3f4f6;
+            color: #374151;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            margin: 1px;
         }}
-        .badge-rate {{
-            background: #4f46e5;
+        .expand-toggle {{
+            cursor: pointer;
+            color: #4f46e5;
+            font-weight: 600;
+            font-size: 0.8rem;
+            user-select: none;
         }}
-        .badge-paid {{
-            background: #0891b2;
+        .expand-toggle:hover {{
+            text-decoration: underline;
         }}
-        .client-info {{
-            margin-top: 15px;
-            padding: 12px;
-            background: #eff6ff;
-            border-radius: 8px;
+        .detail-row {{
+            display: none;
+            background: #f8fafc;
             border-left: 3px solid #4f46e5;
         }}
-        .client-info-title {{
-            font-size: 0.8rem;
-            color: #6b7280;
-            margin-bottom: 6px;
-            font-weight: 600;
+        .detail-row.active {{
+            display: table-row;
         }}
-        .client-badges {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
+        .detail-content {{
+            padding: 15px;
+            font-size: 0.85rem;
         }}
-        .urls-section {{
-            margin-top: 15px;
-            padding: 12px;
-            background: #fef3c7;
-            border-radius: 8px;
-            border-left: 3px solid #f59e0b;
-        }}
-        .urls-warning {{
-            font-size: 0.8rem;
-            color: #d97706;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }}
-        .urls-list {{
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }}
-        .urls-list li {{
-            padding: 4px 0;
-            font-size: 0.8rem;
-        }}
-        .urls-list code {{
-            background: #fffbeb;
-            color: #d97706;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            word-break: break-all;
-        }}
-        .competition-info {{
-            display: flex;
-            justify-content: space-between;
-            margin: 12px 0;
-            padding: 10px;
-            background: #f8fafc;
-            border-radius: 8px;
-        }}
-        .competition-item {{
-            text-align: center;
-        }}
-        .competition-value {{
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: #1f2937;
-        }}
-        .competition-label {{
-            font-size: 0.75rem;
-            color: #6b7280;
-            margin-top: 2px;
-        }}
-        .job-age {{
-            display: inline-block;
-            padding: 3px 8px;
-            background: #e0e7ff;
+        .detail-content h4 {{
             color: #4f46e5;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
         }}
-        .text-muted {{
-            color: #9ca3af;
+        .detail-content p {{
+            margin-bottom: 15px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }}
+        .competition-cell {{
+            text-align: center;
             font-size: 0.8rem;
-            font-style: italic;
         }}
-        .click-hint {{
-            font-size: 0.7rem;
-            color: #9ca3af;
-            text-align: right;
-            margin-top: 5px;
+        .no-jobs {{
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+            font-size: 1.1rem;
         }}
+        .col-score {{ width: 70px; }}
+        .col-age {{ width: 120px; }}
+        .col-priority {{ width: 80px; }}
+        .col-budget {{ width: 80px; }}
+        .col-applicants {{ width: 80px; }}
+        .col-client {{ width: 70px; }}
+        .col-actions {{ width: 80px; }}
     </style>
     <script>
-        function toggleJobDetail(jobId) {{
-            const card = document.getElementById('job-' + jobId);
-            card.classList.toggle('expanded');
-            const details = card.querySelector('.job-details');
-            details.classList.toggle('full');
-            const desc = card.querySelector('.job-description');
-            desc.classList.toggle('active');
+        let allJobs = {json.dumps(jobs)};
+        let sortColumn = 'job_age_hours';
+        let sortDirection = 'asc';
+
+        function renderTable(jobsToRender) {{
+            const tbody = document.getElementById('jobs-table-body');
+            tbody.innerHTML = '';
+
+            if (jobsToRender.length === 0) {{
+                tbody.innerHTML = '<tr><td colspan="13" class="no-jobs">No jobs match your filters</td></tr>';
+                return;
+            }}
+
+            jobsToRender.forEach((job, index) => {{
+                const row = document.createElement('tr');
+                row.id = 'job-' + job.job_id;
+                row.className = 'job-row';
+
+                const scoreClass = job.score_total >= 80 ? 'score-high' : (job.score_total >= 50 ? 'score-medium' : 'score-low');
+                const priorityClass = job.priority === 'High' ? 'priority-high' : (job.priority === 'Medium' ? 'priority-medium' : 'priority-low');
+                const clientBadge = job.client_payment_verified ? '<span class="badge badge-verified">✓</span>' : '-';
+
+                let techTags = '';
+                if (job.tech_stack && job.tech_stack.length > 0) {{
+                    techTags = job.tech_stack.slice(0, 3).map(tech => `<span class="tech-tag">${{tech}}</span>`).join('');
+                    if (job.tech_stack.length > 3) {{
+                        techTags += ` <span class="badge">+${{job.tech_stack.length - 3}}</span>`;
+                    }}
+                }}
+
+                row.innerHTML = `
+                    <td><span class="expand-toggle" onclick="toggleDetail('${{job.job_id}}')">[+]</span></td>
+                    <td class="job-title"><a href="${{job.url}}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${{job.title}}</a></td>
+                    <td class="score ${{scoreClass}}">${{job.score_total}}</td>
+                    <td class="job-age"><small style="color: #9ca3af">${{job.job_age_hours}}h</small><br>${{job.job_age_string}}</td>
+                    <td class="priority ${{priorityClass}}">${{job.priority}}</td>
+                    <td>${{formatBudget(job.budget)}}</td>
+                    <td class="competition-cell">${{job.applicant_count}} / ${{job.interviewing_count}}</td>
+                    <td>${{clientBadge}}</td>
+                    <td><small>${{techTags}}</small></td>
+                `;
+
+                tbody.appendChild(row);
+
+                const detailRow = document.createElement('tr');
+                detailRow.id = 'detail-' + job.job_id;
+                detailRow.className = 'detail-row';
+                detailRow.innerHTML = `
+                    <td colspan="9">
+                        <div class="detail-content">
+                            <h4>Job Description</h4>
+                            <p>${{(job.description || 'No description available').replace(/</g, '&lt;').replace(/>/g, '&gt;')}}</p>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(detailRow);
+            }});
         }}
+
+        function toggleDetail(jobId) {{
+            const row = document.getElementById('job-' + jobId);
+            const detailRow = document.getElementById('detail-' + jobId);
+            const toggle = row.querySelector('.expand-toggle');
+            
+            if (detailRow.classList.contains('active')) {{
+                detailRow.classList.remove('active');
+                row.classList.remove('expanded');
+                toggle.textContent = '[+]';
+            }} else {{
+                detailRow.classList.add('active');
+                row.classList.add('expanded');
+                toggle.textContent = '[-]';
+            }}
+        }}
+
+        function applyFilters() {{
+            const minScore = parseInt(document.getElementById('filter-min-score').value) || 0;
+            const maxAgeHours = parseInt(document.getElementById('filter-max-age').value) || 999999;
+            const minBudget = parseInt(document.getElementById('filter-min-budget').value) || 0;
+            const priority = document.getElementById('filter-priority').value;
+            const applicantsMax = parseInt(document.getElementById('filter-applicants').value) || 999;
+            const clientVerifiedOnly = document.getElementById('filter-client-verified').checked;
+
+            let filtered = allJobs.filter(job => {{
+                if (job.score_total < minScore) return false;
+                if (job.job_age_hours > maxAgeHours) return false;
+                if (job.budget !== null && job.budget < minBudget) return false;
+                if (priority !== 'all' && job.priority !== priority) return false;
+                if (job.applicant_count > applicantsMax) return false;
+                if (clientVerifiedOnly && !job.client_payment_verified) return false;
+                return true;
+            }});
+
+            filtered.sort((a, b) => {{
+                let aVal = a[sortColumn];
+                let bVal = b[sortColumn];
+                if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+                if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            }});
+
+            renderTable(filtered);
+            document.getElementById('results-count').textContent = filtered.length;
+        }}
+
+        function resetFilters() {{
+            document.getElementById('filter-min-score').value = '';
+            document.getElementById('filter-max-age').value = '';
+            document.getElementById('filter-min-budget').value = '';
+            document.getElementById('filter-priority').value = 'all';
+            document.getElementById('filter-applicants').value = '';
+            document.getElementById('filter-client-verified').checked = false;
+            applyFilters();
+        }}
+
+        function sortTable(column) {{
+            if (sortColumn === column) {{
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            }} else {{
+                sortColumn = column;
+                sortDirection = 'asc';
+            }}
+
+            document.querySelectorAll('th').forEach(th => th.classList.remove('sorted', 'asc', 'desc'));
+            const th = document.querySelector(`th[onclick="sortTable('${{column}}')"]`);
+            if (th) {{
+                th.classList.add('sorted', sortDirection);
+            }}
+
+            applyFilters();
+        }}
+
+        function formatBudget(budget) {{
+            if (budget === null) return 'Hourly';
+            return '$' + budget.toLocaleString();
+        }}
+
+        document.addEventListener('DOMContentLoaded', function() {{
+            document.getElementById('filter-min-score').addEventListener('change', applyFilters);
+            document.getElementById('filter-max-age').addEventListener('input', applyFilters);
+            document.getElementById('filter-min-budget').addEventListener('input', applyFilters);
+            document.getElementById('filter-priority').addEventListener('change', applyFilters);
+            document.getElementById('filter-applicants').addEventListener('input', applyFilters);
+            document.getElementById('filter-client-verified').addEventListener('change', applyFilters);
+
+            renderTable(allJobs);
+            document.getElementById('total-jobs').textContent = allJobs.length;
+            document.getElementById('results-count').textContent = allJobs.length;
+        }});
     </script>
 </head>
 <body>
@@ -469,113 +468,69 @@ def generate_html(jobs):
         <div class="header">
             <h1>AI Jobs Evaluation Report</h1>
             <div class="meta">
-                Generated: {now} | Total Ranked Jobs: {len(jobs)}
+                Generated: {now} | Total Jobs: <span id="total-jobs">0</span> | Showing: <span id="results-count">0</span>
             </div>
         </div>
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value">{len(jobs)}</div>
-                <div class="stat-label">Total Ranked Jobs</div>
+        <div class="data-warning">
+            <strong>Data Notice:</strong> Applicant counts and client metrics show as 0 because the Apify dataset
+            does not include this data when scraping. These fields are populated only when jobs are scraped with a custom solution.
+            Job ages are calculated dynamically and represent time since posting.
+        </div>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label>Min Score</label>
+                <input type="number" id="filter-min-score" placeholder="50" min="0" max="100">
             </div>
-            <div class="stat-card">
-                <div class="stat-value">{sum(1 for j in jobs if j["priority"] == "High")}</div>
-                <div class="stat-label">High Priority</div>
+            <div class="filter-group">
+                <label>Max Age (hours)</label>
+                <input type="number" id="filter-max-age" placeholder="168 (1 week)" min="0">
             </div>
-            <div class="stat-card">
-                <div class="stat-value">{sum(1 for j in jobs if 50 <= j["score_total"] < 80)}</div>
-                <div class="stat-label">Medium Priority</div>
+            <div class="filter-group">
+                <label>Min Budget ($)</label>
+                <input type="number" id="filter-min-budget" placeholder="500" min="0">
             </div>
-            <div class="stat-card">
-                <div class="stat-value">{sum(1 for j in jobs if j.get("description_urls", []))}</div>
-                <div class="stat-label">Jobs with URLs</div>
+            <div class="filter-group">
+                <label>Priority</label>
+                <select id="filter-priority">
+                    <option value="all">All</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Max Applicants</label>
+                <input type="number" id="filter-applicants" placeholder="10" min="0">
+            </div>
+            <div class="filter-group">
+                <label>Client Verified</label>
+                <input type="checkbox" id="filter-client-verified">
+            </div>
+            <div>
+                <button class="btn btn-reset" onclick="resetFilters()">Reset Filters</button>
             </div>
         </div>
 
-        <div class="jobs-grid">
-    """
-
-    for job in jobs:
-        priority_color = get_priority_color(job["priority"])
-        expertise_badges = generate_expertise_badges(job["matched_expertise_ids"])
-        tech_tags = " ".join(
-            f'<span class="tech-tag">{tech}</span>' for tech in job.get("tech_stack", [])
-        )
-        client_info = format_client_info(job)
-        urls_html = format_urls(job.get("description_urls", []))
-
-        job_age_hours = job.get("job_age_hours", 0)
-        job_age_display = job.get("job_age_string", "Unknown")
-
-        html += f"""
-            <div class="job-card" id="job-{job['job_id']}" onclick="event.preventDefault(); toggleJobDetail('{job['job_id']}')">
-                <div class="job-header">
-                    <div class="job-title">
-                        <a href="{job["url"]}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">{job["title"]}</a>
-                        <div class="click-hint">Click to expand</div>
-                    </div>
-                    <div class="job-meta">
-                        <div class="score">{job["score_total"]}</div>
-                        <span class="priority" style="background-color: {priority_color};">{job["priority"]}</span>
-                    </div>
-                </div>
-
-                <div class="job-details">
-                    <div class="detail-row">
-                        <span class="detail-label">Posted:</span>
-                        <span class="job-age">🕐 {job_age_display}</span>
-                    </div>
-
-                    <div class="competition-info">
-                        <div class="competition-item">
-                            <div class="competition-value">{job.get("applicant_count", 0)}</div>
-                            <div class="competition-label">Applicants</div>
-                        </div>
-                        <div class="competition-item">
-                            <div class="competition-value">{job.get("interviewing_count", 0)}</div>
-                            <div class="competition-label">Interviewing</div>
-                        </div>
-                        <div class="competition-item">
-                            <div class="competition-value">{'✓' if job.get("invite_only") else '✗'}</div>
-                            <div class="competition-label">Invite Only</div>
-                        </div>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">Budget:</span>
-                        <span class="detail-value">{format_budget(job["budget"])}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Duration:</span>
-                        <span class="detail-value">{format_duration(job.get("duration_weeks"))}</span>
-                    </div>
-
-                    <div class="client-info">
-                        <div class="client-info-title">Client Information</div>
-                        <div class="client-badges">{client_info}</div>
-                    </div>
-
-                    {urls_html}
-
-                    <div class="tech-stack">
-                        <div class="tech-stack-label">Tech Stack</div>
-                        <div class="tech-tags">{tech_tags}</div>
-                    </div>
-
-                    <div class="expertise-section">
-                        <div class="expertise-label">Matched Expertise Areas</div>
-                        <div class="badges">{expertise_badges}</div>
-                    </div>
-
-                    <div class="job-description" id="desc-{job['job_id']}">
-                        <strong>Job Description:</strong><br>
-                        {job.get('description', 'No description available')}
-                    </div>
-                </div>
-            </div>
-        """
-
-    html += """
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="col-actions"></th>
+                        <th onclick="sortTable('title')">Job Title</th>
+                        <th class="col-score sorted asc" onclick="sortTable('score_total')">Score</th>
+                        <th class="col-age" onclick="sortTable('job_age_hours')">Age</th>
+                        <th class="col-priority" onclick="sortTable('priority')">Priority</th>
+                        <th class="col-budget" onclick="sortTable('budget')">Budget</th>
+                        <th class="col-applicants" onclick="sortTable('applicant_count')">Applicants / Interviews</th>
+                        <th class="col-client">Verified</th>
+                        <th>Tech Stack</th>
+                    </tr>
+                </thead>
+                <tbody id="jobs-table-body">
+                </tbody>
+            </table>
         </div>
     </div>
 </body>
@@ -586,9 +541,8 @@ def generate_html(jobs):
 
 
 def main():
-    """Main function."""
     print("Fetching jobs data from API...")
-    jobs = fetch_jobs_data(limit=60)
+    jobs = fetch_jobs_data(limit=100)
 
     if not jobs:
         print("No jobs data found!")
