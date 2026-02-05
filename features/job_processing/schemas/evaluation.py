@@ -86,6 +86,7 @@ class JobEvaluationResponse(BaseModel):
 class JobEvaluationListResponse(BaseModel):
     job_id: str
     title: str
+    description: str
     url: str
     budget: Optional[float]
     duration_weeks: Optional[float]

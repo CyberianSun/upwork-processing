@@ -33,39 +33,52 @@ async def get_ranked_jobs(
     result = await db.execute(query)
     jobs = result.all()
 
+    job_list = [
+        {
+            "job": job,
+            "evaluation": evaluation,
+            "age_hours": calculate_job_age(job.ts_publish)[0],
+            "age_string": calculate_job_age(job.ts_publish)[1],
+        }
+        for job, evaluation in jobs
+    ]
+
+    job_list.sort(key=lambda x: (x["age_hours"], -x["evaluation"].score_total))
+
     return [
         JobEvaluationListResponse(
-            job_id=job.id,
-            title=job.title,
-            url=job.url,
-            budget=float(job.fixed_budget_amount) if job.fixed_budget_amount else None,
-            duration_weeks=float(job.fixed_duration_weeks)
-            if job.fixed_duration_weeks
+            job_id=item["job"].id,
+            title=item["job"].title,
+            description=item["job"].description,
+            url=item["job"].url,
+            budget=float(item["job"].fixed_budget_amount) if item["job"].fixed_budget_amount else None,
+            duration_weeks=float(item["job"].fixed_duration_weeks)
+            if item["job"].fixed_duration_weeks
             else None,
-            score_total=evaluation.score_total,
-            priority=evaluation.priority,
-            project_type=evaluation.project_type,
-            tech_stack=evaluation.tech_stack,
-            matched_expertise_ids=evaluation.matched_expertise_ids,
-            reasoning_summary=_summarize_reasoning(evaluation),
-            applicant_count=job.applicant_count,
-            interviewing_count=job.interviewing_count,
-            invite_only=job.invite_only,
-            client_payment_verified=job.client_payment_verified,
-            client_rating=job.client_rating,
-            client_jobs_posted=job.client_jobs_posted,
-            client_hire_rate=job.client_hire_rate,
-            client_total_paid=job.client_total_paid,
-            client_hires=job.client_hires,
-            client_reviews=job.client_reviews,
-            experience_level=job.experience_level,
-            project_length=job.project_length,
-            client_response_time=job.client_response_time,
-            job_age_hours=calculate_job_age(job.ts_publish)[0],
-            job_age_string=calculate_job_age(job.ts_publish)[1],
-            description_urls=job.description_urls or [],
+            score_total=item["evaluation"].score_total,
+            priority=item["evaluation"].priority,
+            project_type=item["evaluation"].project_type,
+            tech_stack=item["evaluation"].tech_stack,
+            matched_expertise_ids=item["evaluation"].matched_expertise_ids,
+            reasoning_summary=_summarize_reasoning(item["evaluation"]),
+            applicant_count=item["job"].applicant_count,
+            interviewing_count=item["job"].interviewing_count,
+            invite_only=item["job"].invite_only,
+            client_payment_verified=item["job"].client_payment_verified,
+            client_rating=item["job"].client_rating,
+            client_jobs_posted=item["job"].client_jobs_posted,
+            client_hire_rate=item["job"].client_hire_rate,
+            client_total_paid=item["job"].client_total_paid,
+            client_hires=item["job"].client_hires,
+            client_reviews=item["job"].client_reviews,
+            experience_level=item["job"].experience_level,
+            project_length=item["job"].project_length,
+            client_response_time=item["job"].client_response_time,
+            job_age_hours=item["age_hours"],
+            job_age_string=item["age_string"],
+            description_urls=item["job"].description_urls or [],
         )
-        for job, evaluation in jobs
+        for item in job_list
     ]
 
 

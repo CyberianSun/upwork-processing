@@ -204,10 +204,15 @@ def generate_html(jobs):
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
             overflow: hidden;
             transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
         }}
         .job-card:hover {{
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }}
+        .job-card.expanded {{
+            cursor: default;
+            transform: none;
         }}
         .job-header {{
             display: flex;
@@ -316,6 +321,36 @@ def generate_html(jobs):
         .badge-expertise {{
             font-weight: 500;
         }}
+        .expand-toggle {{
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 0.75rem;
+            color: #6b7280;
+            background: #f3f4f6;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }}
+        .job-details {{
+            padding: 20px;
+            display: none;
+        }}
+        .job-details.full {{
+            display: block;
+        }}
+        .job-description {{
+            display: none;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 3px solid #4f46e5;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }}
+        .job-description.active {{
+            display: block;
+        }}
         .badge-verified {{
             background: #16a34a;
         }}
@@ -411,7 +446,23 @@ def generate_html(jobs):
             font-size: 0.8rem;
             font-style: italic;
         }}
+        .click-hint {{
+            font-size: 0.7rem;
+            color: #9ca3af;
+            text-align: right;
+            margin-top: 5px;
+        }}
     </style>
+    <script>
+        function toggleJobDetail(jobId) {{
+            const card = document.getElementById('job-' + jobId);
+            card.classList.toggle('expanded');
+            const details = card.querySelector('.job-details');
+            details.classList.toggle('full');
+            const desc = card.querySelector('.job-description');
+            desc.classList.toggle('active');
+        }}
+    </script>
 </head>
 <body>
     <div class="container">
@@ -457,10 +508,11 @@ def generate_html(jobs):
         job_age_display = job.get("job_age_string", "Unknown")
 
         html += f"""
-            <div class="job-card">
+            <div class="job-card" id="job-{job['job_id']}" onclick="event.preventDefault(); toggleJobDetail('{job['job_id']}')">
                 <div class="job-header">
                     <div class="job-title">
-                        <a href="{job["url"]}" target="_blank" rel="noopener noreferrer">{job["title"]}</a>
+                        <a href="{job["url"]}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">{job["title"]}</a>
+                        <div class="click-hint">Click to expand</div>
                     </div>
                     <div class="job-meta">
                         <div class="score">{job["score_total"]}</div>
@@ -470,7 +522,7 @@ def generate_html(jobs):
 
                 <div class="job-details">
                     <div class="detail-row">
-                        <span class="detail-label">Score Breakdown:</span>
+                        <span class="detail-label">Posted:</span>
                         <span class="job-age">🕐 {job_age_display}</span>
                     </div>
 
@@ -513,6 +565,11 @@ def generate_html(jobs):
                     <div class="expertise-section">
                         <div class="expertise-label">Matched Expertise Areas</div>
                         <div class="badges">{expertise_badges}</div>
+                    </div>
+
+                    <div class="job-description" id="desc-{job['job_id']}">
+                        <strong>Job Description:</strong><br>
+                        {job.get('description', 'No description available')}
                     </div>
                 </div>
             </div>
