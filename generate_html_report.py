@@ -436,7 +436,7 @@ def generate_html(jobs):
                 <div class="stat-label">Medium Priority</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value">{sum(1 for j in jobs if j.get("description_urls"))}</div>
+                <div class="stat-value">{sum(1 for j in jobs if j.get("description_urls", []))}</div>
                 <div class="stat-label">Jobs with URLs</div>
             </div>
         </div>
