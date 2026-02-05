@@ -6,6 +6,7 @@ from core.database import get_db
 from features.job_processing.models.job import Job
 from features.job_processing.models.evaluation import JobEvaluation
 from features.job_processing.schemas.evaluation import JobEvaluationListResponse
+from features.job_processing.utils.url_parser import calculate_job_age
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -60,8 +61,8 @@ async def get_ranked_jobs(
             experience_level=job.experience_level,
             project_length=job.project_length,
             client_response_time=job.client_response_time,
-            job_age_hours=job.job_age_hours,
-            job_age_string=job.job_age_string,
+            job_age_hours=calculate_job_age(job.ts_publish)[0],
+            job_age_string=calculate_job_age(job.ts_publish)[1],
             description_urls=job.description_urls or [],
         )
         for job, evaluation in jobs
