@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     database_url: str
     cerebras_api_key: str
-    cerebras_model: str = "glm-4.7"
+    cerebras_model: str = "zai-glm-4.7"
     rate_limit_requests: int = 2
     rate_limit_concurrent: int = 2
     api_timeout: int = 30

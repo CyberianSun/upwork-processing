@@ -1,16 +1,15 @@
 from datetime import datetime
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional
+from typing import List, Optional
+
+
+from pydantic import BaseModel, Field, computed_field
+from typing import List, Optional
 
 
 class ExpertiseMatch(BaseModel):
     expertise_id: int = Field(..., ge=1, le=8)
     match_reason: str = Field(...)
-
-
-class ScoreBreakdown(BaseModel):
-    score: int = Field(..., ge=0, le=10)
-    reasoning: str = Field(...)
 
 
 class JobEvaluationRequest(BaseModel):
@@ -27,17 +26,40 @@ class JobEvaluationRequest(BaseModel):
 
 class JobEvaluationResponse(BaseModel):
     is_ai_related: bool = Field(...)
-    filter_reason: Optional[str] = Field(None)
+    filter_reason: Optional[str] = None
 
-    tech_stack: List[str] = Field(default_factory=list)
-    project_type: str = Field(...)
-    complexity: str = Field(...)
+    tech_stack: str | List[str] = ""
+    project_type: Optional[str] = None
+    complexity: Optional[str] = None
     matched_expertise: List[ExpertiseMatch] = Field(default_factory=list)
 
-    scores: Dict[str, ScoreBreakdown] = Field(...)
+    score_budget: Optional[int] = None
+    reason_budget: Optional[str] = None
 
-    score_total: int = Field(..., ge=0, le=100)
-    priority: str = Field(...)
+    score_client: Optional[int] = None
+    reason_client: Optional[str] = None
+
+    score_clarity: Optional[int] = None
+    reason_clarity: Optional[str] = None
+
+    score_tech_fit: Optional[int] = None
+    reason_tech_fit: Optional[str] = None
+
+    score_timeline: Optional[int] = None
+    reason_timeline: Optional[str] = None
+
+    score_total: Optional[float] = None
+    priority: Optional[str] = None
+
+    @computed_field
+    @property
+    def computed_score_total(self) -> float:
+        if self.score_total is not None:
+            return self.score_total
+        if all(x is not None for x in [self.score_budget, self.score_client, self.score_clarity, self.score_tech_fit, self.score_timeline]):
+            return (self.score_budget * 0.25 + self.score_client * 0.15 +
+                    self.score_clarity * 0.20 + self.score_tech_fit * 0.30 + self.score_timeline * 0.10) * 100 / 10
+        return 0.0
 
 
 class JobEvaluationListResponse(BaseModel):

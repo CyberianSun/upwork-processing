@@ -46,7 +46,7 @@ async def get_ranked_jobs(
             project_type=evaluation.project_type,
             tech_stack=evaluation.tech_stack,
             matched_expertise_ids=evaluation.matched_expertise_ids,
-            reasoning_summary=self._summarize_reasoning(evaluation),
+            reasoning_summary=_summarize_reasoning(evaluation),
         )
         for job, evaluation in jobs
     ]

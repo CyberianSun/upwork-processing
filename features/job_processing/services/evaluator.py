@@ -1,9 +1,10 @@
-from .models.job import Job
-from .models.evaluation import JobEvaluation
-from .schemas.evaluation import (
+from typing import Optional
+
+from ..models.job import Job
+from ..models.evaluation import JobEvaluation
+from ..schemas.evaluation import (
     JobEvaluationRequest,
     JobEvaluationResponse,
-    ScoreBreakdown,
 )
 from core.cerebras import CerebrasClient
 from core.config import settings
@@ -47,9 +48,12 @@ EXPERTISE MATCH FORMAT:
 Match expertise only when job description explicitly mentions related keywords or concepts.
 
 OUTPUT RULES:
-- Return valid JSON matching the provided schema
-- is_ai_related=false → set filter_reason, skip other fields
+- Return valid JSON matching the exact field names: is_ai_related, tech_stack, project_type, complexity, matched_expertise (array with expertise_id and match_reason), score_budget, reason_budget, score_client, reason_client, score_clarity, reason_clarity, score_tech_fit, reason_tech_fit, score_timeline, reason_timeline, score_total, priority
+- is_ai_related=false → set filter_reason, other fields can be omitted
 - is_ai_related=true → fill all fields
+- complexity must be: Low, Medium, or High
+- priority must be: High, Medium, or High
+- expertise_id must be 1-8 corresponding to expertise area
 - Provide clear, concise reasoning for each score"""
 
     async def evaluate_job(
@@ -88,7 +92,7 @@ OUTPUT RULES:
                 evaluation = JobEvaluation(
                     job_id=job.id,
                     is_ai_related=0,
-                    filter_reason=response.filter_reason,
+                    filter_reason=response.filter_reason or "Not AI-related",
                     tech_stack=[],
                     project_type="",
                     complexity="",
@@ -107,28 +111,36 @@ OUTPUT RULES:
                     priority="Low",
                 )
             else:
+                tech_stack_list = []
+                if isinstance(response.tech_stack, str):
+                    tech_stack_list = [t.strip() for t in response.tech_stack.split(",")]
+                else:
+                    tech_stack_list = response.tech_stack or []
+
+                score_total = int(response.computed_score_total) if response.computed_score_total else 0
+
                 evaluation = JobEvaluation(
                     job_id=job.id,
                     is_ai_related=1,
                     filter_reason=None,
-                    tech_stack=response.tech_stack,
-                    project_type=response.project_type,
-                    complexity=response.complexity,
+                    tech_stack=tech_stack_list,
+                    project_type=response.project_type or "",
+                    complexity=response.complexity or "",
                     matched_expertise_ids=[
-                        m.expertise_id for m in response.matched_expertise
+                        m.expertise_id for m in (response.matched_expertise or [])
                     ],
-                    score_budget=response.scores["budget"].score,
-                    score_client=response.scores["client"].score,
-                    score_clarity=response.scores["clarity"].score,
-                    score_tech_fit=response.scores["tech_fit"].score,
-                    score_timeline=response.scores["timeline"].score,
-                    score_total=response.score_total,
-                    reason_budget=response.scores["budget"].reasoning,
-                    reason_client=response.scores["client"].reasoning,
-                    reason_clarity=response.scores["clarity"].reasoning,
-                    reason_tech_fit=response.scores["tech_fit"].reasoning,
-                    reason_timeline=response.scores["timeline"].reasoning,
-                    priority=response.priority,
+                    score_budget=response.score_budget or 0,
+                    score_client=response.score_client or 0,
+                    score_clarity=response.score_clarity or 0,
+                    score_tech_fit=response.score_tech_fit or 0,
+                    score_timeline=response.score_timeline or 0,
+                    score_total=score_total,
+                    reason_budget=response.reason_budget or "",
+                    reason_client=response.reason_client or "",
+                    reason_clarity=response.reason_clarity or "",
+                    reason_tech_fit=response.reason_tech_fit or "",
+                    reason_timeline=response.reason_timeline or "",
+                    priority=response.priority or "Medium",
                 )
 
             db.add(evaluation)

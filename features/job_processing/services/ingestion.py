@@ -1,9 +1,10 @@
 import orjson
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 
-from features.job_processing.models.job import Job
-from features.job_processing.services.evaluator import JobEvaluator
+from ..models.job import Job
+from .evaluator import JobEvaluator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -18,7 +19,8 @@ class JobIngestionService:
         checkpoint_interval: int = 10,
     ) -> Dict[str, int]:
         with open(file_path, "rb") as f:
-            data = orjson.load(f)
+            content = f.read()
+            data = orjson.loads(content)
 
         results = {
             "total_jobs": 0,
@@ -44,21 +46,47 @@ class JobIngestionService:
                     await db.refresh(job)
                     results["ingested"] += 1
 
-                evaluation = await self.evaluator.evaluate_job(job, db)
+                from ..models.evaluation import JobEvaluation
+                from sqlalchemy import select
+                existing_eval = await db.execute(
+                    select(JobEvaluation).where(JobEvaluation.job_id == job.id)
+                )
+                existing_record = existing_eval.scalar_one_or_none()
 
-                if evaluation:
+                if existing_record:
+                    print(f"  → Already evaluated, skipping")
                     results["evaluated"] += 1
-                    if evaluation.is_ai_related:
+                    if existing_record.is_ai_related:
                         results["ai_related"] += 1
                     else:
                         results["not_ai_related"] += 1
+                else:
+                    print(f"Evaluating job {idx + 1}: {job.title[:50]}...")
+                    try:
+                        evaluation = await self.evaluator.evaluate_job(job, db)
+
+                        if evaluation:
+                            results["evaluated"] += 1
+                            if evaluation.is_ai_related:
+                                results["ai_related"] += 1
+                            else:
+                                results["not_ai_related"] += 1
+
+                            print(f"  → Score: {evaluation.score_total}/100, Priority: {evaluation.priority}")
+                    except Exception as eval_error:
+                        import httpx
+                        if isinstance(eval_error, httpx.HTTPStatusError) and eval_error.response.status_code == 502:
+                            print(f"  → API unavailable (502), will retry in next run")
+                        else:
+                            raise
 
                 if (idx + 1) % checkpoint_interval == 0:
-                    print(f"Processed {idx + 1}/{len(data)} jobs")
+                    print(f"Checkpoint: {idx + 1}/{len(data)} jobs processed")
 
             except Exception as e:
                 results["errors"] += 1
-                print(f"Error processing job {idx}: {e}")
+                import traceback
+                traceback.print_exc()
                 await db.rollback()
 
         return results
@@ -75,17 +103,20 @@ class JobIngestionService:
                 duration_rid = fixed["duration"].get("rid")
                 duration_weeks = self._map_duration_rid_to_weeks(duration_rid)
 
+        ts_publish = self._parse_timestamp(job_data.get("ts_publish"))
+        scraped_at = self._parse_timestamp(job_data.get("scraped_at"))
+
         return Job(
             id=job_data["id"],
             title=job_data["title"],
-            ts_publish=job_data["ts_publish"],
+            ts_publish=ts_publish,
             description=job_data["description"],
             type=job_data.get("type", "FIXED"),
             url=job_data["url"],
             fixed_budget_amount=budget_amount,
             fixed_duration_weeks=duration_weeks,
             source="apify",
-            scraped_at=job_data.get("scraped_at"),
+            scraped_at=scraped_at,
         )
 
     def _map_duration_rid_to_weeks(self, rid: int | None) -> float | None:
@@ -100,3 +131,13 @@ class JobIngestionService:
         }
 
         return mapping.get(rid)
+
+    def _parse_timestamp(self, ts: str | None) -> datetime | None:
+        if ts is None:
+            return None
+
+        try:
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            return dt.replace(tzinfo=None)
+        except (ValueError, AttributeError):
+            return None

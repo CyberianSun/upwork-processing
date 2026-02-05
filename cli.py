@@ -1,5 +1,5 @@
-import typer
 import asyncio
+import typer
 from pathlib import Path
 
 from core.database import AsyncSessionLocal, init_db
@@ -8,11 +8,8 @@ from core.cerebras import CerebrasClient
 from features.job_processing.services.evaluator import JobEvaluator
 from features.job_processing.services.ingestion import JobIngestionService
 
-app = typer.Typer(name="upwork-processing")
 
-
-@app.command()
-async def ingest(file_path: Path = typer.Argument(..., help="Apify JSON file path")):
+async def ingest(file_path: Path):
     await init_db()
 
     async with AsyncSessionLocal() as db:
@@ -40,4 +37,9 @@ async def ingest(file_path: Path = typer.Argument(..., help="Apify JSON file pat
 
 
 if __name__ == "__main__":
-    app()
+    import sys
+
+    def _main(file_path: Path):
+        asyncio.run(ingest(file_path))
+
+    typer.run(_main)
