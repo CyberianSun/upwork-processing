@@ -1,14 +1,22 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8001:8000"
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@localdb:5432/upwork_processing
       - CEREBRAS_API_KEY=${CEREBRAS_API_KEY:-test_mode}
       - LOG_LEVEL=INFO
+      - BEADS_BIN=/usr/local/bin/bd
     depends_on:
       - localdb
+    volumes:
+      - ./projects:/app/projects
+      - ./migrations:/app/migrations
+      - ~/.config/opencode:/root/.config/opencode
+      - ~/.local/bin/bd:/usr/local/bin/bd
 
   localdb:
     image: pgvector/pgvector:pg16
