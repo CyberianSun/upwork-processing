@@ -32,6 +32,49 @@ def expertise_map():
     }
 
 
+def agent_preferred_tech():
+    return {
+        1: ["LangChain", "crewAI", "OpenAI Agents", "AutoGen"],
+        2: ["LangChain", "LlamaIndex", "OpenAI API", "Cerebras GLM"],
+        3: ["PostgreSQL", "pgvector", "DuckDB", "Pandas"],
+        4: ["FastAPI", "Python", "PostgreSQL", "pgvector"],
+        5: ["React", "TypeScript", "Next.js", "Tailwind"],
+        6: ["Docker", "GitHub Actions", "Vercel", "AWS"],
+        7: ["Vapi", "Deepgram", "Twilio", "OpenAI Whisper"],
+        8: ["pytest", "Ruff", "GitHub Actions", "SonarQube"],
+    }
+
+
+def compare_tech_stack(job_tech, expertise_ids):
+    agent_tech = {}
+    for exp_id in expertise_ids:
+        if exp_id in agent_preferred_tech():
+            agent_tech.update({tech: exp_id for tech in agent_preferred_tech()[exp_id]})
+
+    job_tech_lower = [t.lower() for t in job_tech]
+    agent_tech_lower = [t.lower() for t in agent_tech.keys()]
+
+    matches = []
+    job_specific = []
+    agent_specific = []
+
+    for job_tool in job_tech:
+        if job_tool.lower() in agent_tech_lower:
+            matches.append(job_tool)
+        else:
+            job_specific.append(job_tool)
+
+    for agent_tool in agent_tech.keys():
+        if agent_tool.lower() not in job_tech_lower:
+            agent_specific.append(agent_tool)
+
+    return {
+        "matches": matches,
+        "job_specific": job_specific,
+        "agent_specific": agent_specific,
+    }
+
+
 def format_budget(budget):
     """Format budget for display."""
     if budget is None:
@@ -309,10 +352,23 @@ def generate_html(jobs):
             font-size: 0.85rem;
             line-height: 1.5;
         }}
-        .reasoning-item:last-child {{
-            margin-bottom: 0;
-        }}
-        .competition-cell {{
+.reasoning-item:last-child {{
+                    margin-bottom: 0;
+                }}
+                .tech-comparison-section {{
+                    margin-bottom: 20px;
+                    padding: 15px;
+                    background: #f0fdf4;
+                    border-radius: 8px;
+                    border-left: 4px solid #22c55e;
+                }}
+                .tech-comparison-section h5 {{
+                    color: #16a34a;
+                    margin-bottom: 12px;
+                    font-size: 0.9rem;
+                    font-weight: 700;
+                }}
+                .competition-cell {{
             text-align: center;
             font-size: 0.8rem;
         }}
@@ -333,6 +389,8 @@ def generate_html(jobs):
     </style>
     <script>
         let allJobs = {json.dumps(jobs)};
+        let agentPreferredTech = {json.dumps(agent_preferred_tech())};
+        let expertiseMap = {json.dumps(expertise_map())};
         let sortColumn = 'job_age_hours';
         let sortDirection = 'asc';
 
@@ -359,8 +417,13 @@ def generate_html(jobs):
                     techTags = job.tech_stack.map(tech => `<span class="tech-tag">${{tech}}</span>`).join('');
                 }}
 
-                let reasoningSummary = job.reasoning_summary || 'No reasoning available';
-                reasoningSummary = reasoningSummary.replace(/Budget:|Tech Fit:|Clarity:/g, '<strong>$&</strong>');
+                let reasoningFlags = '';
+                if (job.reason_budget) reasoningFlags += '<span title="Budget">💰</span>';
+                if (job.reason_tech_fit) reasoningFlags += '<span title="Tech Fit">🔧</span>';
+                if (job.reason_clarity) reasoningFlags += '<span title="Clarity">📋</span>';
+                if (job.reason_client) reasoningFlags += '<span title="Client">👤</span>';
+                if (job.reason_timeline) reasoningFlags += '<span title="Timeline">📅</span>';
+                if (!reasoningFlags) reasoningFlags = '<span style="color: #9ca3af">No reasoning</span>';
 
                 row.innerHTML = `
                     <td><span class="expand-toggle" onclick="toggleDetail('${{job.job_id}}')">[+]</span></td>
@@ -369,7 +432,7 @@ def generate_html(jobs):
                     <td class="job-age"><small style="color: #9ca3af">${{job.job_age_hours}}h</small><br>${{job.job_age_string}}</td>
                     <td class="priority ${{priorityClass}}">${{job.priority}}</td>
                     <td>${{formatBudget(job.budget)}}</td>
-                    <td class="reasoning-cell"><small>${{reasoningSummary}}</small></td>
+                    <td class="reasoning-cell">${{reasoningFlags}}</td>
                     <td><small>${{techTags}}</small></td>
                     <td class="competition-cell">${{job.applicant_count}}</td>
                     <td>${{clientBadge}}</td>
@@ -380,6 +443,67 @@ def generate_html(jobs):
                 const detailRow = document.createElement('tr');
                 detailRow.id = 'detail-' + job.job_id;
                 detailRow.className = 'detail-row';
+
+                let techStackHtml = '';
+
+                if (job.matched_expertise_ids && job.matched_expertise_ids.length > 0) {{
+                    techStackHtml += '<div class="tech-comparison-section">';
+                    techStackHtml += '<h5>🔧 Recommended Tech Stack (Based on Our Expertise)</h5>';
+
+                    const expertises = job.matched_expertise_ids.map(expId => {{
+                        const expName = expertiseMap[expId] || 'Unknown';
+                        const tools = agentPreferredTech[expId] || [];
+                        const toolTags = tools.map(t => `<span class="tech-tag">${{t}}</span>`).join(' ');
+                        return `<div style="margin-bottom: 12px;">
+                                    <strong>${{expName}}:</strong> ${{toolTags}}
+                                </div>`;
+                    }}).join('');
+
+                    techStackHtml += expertises;
+
+                    if (job.tech_stack && job.tech_stack.length > 0) {{
+                        const jobTechLower = job.tech_stack.map(t => t.toLowerCase());
+                        const ourTools = [];
+                        job.matched_expertise_ids.forEach(expId => {{
+                            const tools = agentPreferredTech[expId] || [];
+                            tools.forEach(t => ourTools.push(t.toLowerCase()));
+                        }});
+
+                        const matches = job.tech_stack.filter(t => ourTools.includes(t.toLowerCase()));
+                        const jobSpecific = job.tech_stack.filter(t => !ourTools.includes(t.toLowerCase()));
+                        const ourSpecific = [];
+                        ourTools.forEach(t => {{
+                            if (!jobTechLower.includes(t) && ourSpecific.indexOf(t) === -1) {{
+                                ourSpecific.push(t.charAt(0).toUpperCase() + t.slice(1));
+                            }}
+                        }});
+
+                        if (matches.length > 0) {{
+                            techStackHtml += `<div style="margin-top: 15px; padding-left: 10px; border-left: 3px solid #22c55e;">
+                                <strong style="color: #16a34a">✓ Matching Tech:</strong>
+                                <div style="margin-top: 5px">${{matches.map(t => `<span class="tech-tag" style="background: #dcfce7; color: #166534">${{t}}</span>`).join(' ')}}</div>
+                            </div>`;
+                        }}
+
+                        if (jobSpecific.length > 0) {{
+                            techStackHtml += `<div style="margin-top: 12px; padding-left: 10px; border-left: 3px solid #f59e0b;">
+                                <strong style="color: #d97706">⚠️ Job-Specific Tech (From Poster):</strong>
+                                <div style="margin-top: 5px">${{jobSpecific.map(t => `<span class="tech-tag" style="background: #fef3c7; color: #92400e">${{t}}</span>`).join(' ')}}</div>
+                                <small style="color: #92400e; display: block; margin-top: 4px;">Will need to learn/implement these technologies</small>
+                            </div>`;
+                        }}
+
+                        if (ourSpecific.length > 0) {{
+                            techStackHtml += `<div style="margin-top: 12px; padding-left: 10px; border-left: 3px solid #3b82f6;">
+                                <strong style="color: #2563eb">🧩 Our Preferred Tech (Not specified by poster):</strong>
+                                <div style="margin-top: 5px">${{ourSpecific.map(t => `<span class="tech-tag" style="background: #dbeafe; color: #1e40af">${{t}}</span>`).join(' ')}}</div>
+                                <small style="color: #1e40af; display: block; margin-top: 4px;">Can use these instead of their suggested tech where applicable</small>
+                            </div>`;
+                        }}
+                    }}
+
+                    techStackHtml += '</div>';
+                }}
 
                 let reasoningHtml = '<div class="reasoning-section">';
                 reasoningHtml += '<h5>AI Evaluation Reasoning</h5>';
@@ -407,6 +531,7 @@ def generate_html(jobs):
                         <div class="detail-content">
                             <h4>Job Description</h4>
                             <p>${{(job.description || 'No description available').replace(/</g, '&lt;').replace(/>/g, '&gt;')}}</p>
+                            ${{techStackHtml}}
                             ${{reasoningHtml}}
                         </div>
                     </td>
