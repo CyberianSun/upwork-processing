@@ -368,6 +368,16 @@ def generate_html(jobs):
                     font-size: 0.9rem;
                     font-weight: 700;
                 }}
+                .reasoning-label {{
+                    display: inline-block;
+                    background: #eef2ff;
+                    color: #4338ca;
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    font-size: 0.65rem;
+                    font-weight: 600;
+                    margin: 1px;
+                }}
                 .competition-cell {{
             text-align: center;
             font-size: 0.8rem;
@@ -417,13 +427,29 @@ def generate_html(jobs):
                     techTags = job.tech_stack.map(tech => `<span class="tech-tag">${{tech}}</span>`).join('');
                 }}
 
-                let reasoningFlags = '';
-                if (job.reason_budget) reasoningFlags += '<span title="Budget">💰</span>';
-                if (job.reason_tech_fit) reasoningFlags += '<span title="Tech Fit">🔧</span>';
-                if (job.reason_clarity) reasoningFlags += '<span title="Clarity">📋</span>';
-                if (job.reason_client) reasoningFlags += '<span title="Client">👤</span>';
-                if (job.reason_timeline) reasoningFlags += '<span title="Timeline">📅</span>';
-                if (!reasoningFlags) reasoningFlags = '<span style="color: #9ca3af">No reasoning</span>';
+                let reasoningLabels = '';
+
+                function getShortLabel(text, paramName) {{
+                    let label = paramName;
+                    const textLower = text.toLowerCase();
+
+                    const positiveWords = ['good', 'excellent', 'strong', 'adequate', 'ample', 'high', 'well', 'clear', 'specific', 'reliable', 'professional', 'realistic', 'adequate', 'matches', 'perfect', 'ideal'];
+                    const negativeWords = ['low', 'poor', 'weak', 'unclear', 'vague', 'insufficient', 'below', 'inadequate', 'limited', 'tight', 'concerning', 'uncertain'];
+
+                    const positiveCount = positiveWords.filter(w => textLower.includes(w)).length;
+                    const negativeCount = negativeWords.filter(w => textLower.includes(w)).length;
+
+                    if (positiveCount > negativeCount) return paramName + ': Good';
+                    if (negativeCount > positiveCount) return paramName + ': Poor';
+                    return paramName + ': OK';
+                }}
+
+                if (job.reason_budget) reasoningLabels += `<span class="reasoning-label">${{getShortLabel(job.reason_budget, 'Budget')}}</span>`;
+                if (job.reason_tech_fit) reasoningLabels += `<span class="reasoning-label">${{getShortLabel(job.reason_tech_fit, 'Tech')}}</span>`;
+                if (job.reason_clarity) reasoningLabels += `<span class="reasoning-label">${{getShortLabel(job.reason_clarity, 'Clear')}}</span>`;
+                if (job.reason_client) reasoningLabels += `<span class="reasoning-label">${{getShortLabel(job.reason_client, 'Client')}}</span>`;
+                if (job.reason_timeline) reasoningLabels += `<span class="reasoning-label">${{getShortLabel(job.reason_timeline, 'Timeline')}}</span>`;
+                if (!reasoningLabels) reasoningLabels = '<span style="color: #9ca3af">No reasoning</span>';
 
                 row.innerHTML = `
                     <td><span class="expand-toggle" onclick="toggleDetail('${{job.job_id}}')">[+]</span></td>
@@ -432,7 +458,7 @@ def generate_html(jobs):
                     <td class="job-age"><small style="color: #9ca3af">${{job.job_age_hours}}h</small><br>${{job.job_age_string}}</td>
                     <td class="priority ${{priorityClass}}">${{job.priority}}</td>
                     <td>${{formatBudget(job.budget)}}</td>
-                    <td class="reasoning-cell">${{reasoningFlags}}</td>
+                    <td class="reasoning-cell"><small>${{reasoningLabels}}</small></td>
                     <td><small>${{techTags}}</small></td>
                     <td class="competition-cell">${{job.applicant_count}}</td>
                     <td>${{clientBadge}}</td>
